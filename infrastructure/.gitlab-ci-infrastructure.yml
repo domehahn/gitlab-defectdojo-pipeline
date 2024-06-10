@@ -1,0 +1,140 @@
+image: alpine
+
+stages:
+  - create_user
+  - create_product_types
+  - create_product_types_member
+  - create_product
+
+before_script:
+    - apk add --no-cache curl jq coreutils
+    - TODAY=$(date +%Y-%m-%d)
+    - ENDDAY=$(date +%Y-%m-%d)
+    - touch defectdojo-infrastructure.env
+
+variables:
+  DEFECTDOJO_ENGAGEMENT_PERIOD: "7"
+  DEFECTDOJO_ENGAGEMENT_STATUS: "Not Started"
+  DEFECTDOJO_ENGAGEMENT_BUILD_SERVER: "null"
+  DEFECTDOJO_ENGAGEMENT_SOURCE_CODE_MANAGEMENT_SERVER: "null"
+  DEFECTDOJO_ENGAGEMENT_ORCHESTRATION_ENGINE: "null"
+  DEFECTDOJO_ENGAGEMENT_DEDUPLICATION_ON_ENGAGEMENT: "false"
+  DEFECTDOJO_ENGAGEMENT_THREAT_MODEL: "true"
+  DEFECTDOJO_ENGAGEMENT_API_TEST: "true"
+  DEFECTDOJO_ENGAGEMENT_PEN_TEST: "true"
+  DEFECTDOJO_ENGAGEMENT_CHECK_LIST: "true"
+  DEFECTDOJO_NOT_ON_MASTER: "false"
+  DEFECTDOJO_ANCHORE_DISABLE: "false"
+  DEFECTDOJO_URL: "http://host.docker.internal:8080/api/v2"
+  DEFECTDOJO_TOKEN: "5351a7773fbe13cf73378d6ba2c85a789596d7ef"
+
+defectdojo_create_user:
+  stage: create_user
+  allow_failure: false
+  script:
+    - echo "Creating DefectDojo user"
+    - source ./scripts/extract.sh
+    - >
+      run_command "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/users/\" \
+        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+          \"username\": \"Gitlab\",
+          \"first_name\": \"CI\",
+          \"last_name\": \"CD\",
+          \"email\": \"dominik.hahn@opitz-consulting.com\",
+          \"is_active\": true,
+          \"is_superuser\": true,
+          \"password\": \"Sup3rS4f3P4$$w[]rd\",
+          \"configuration_permissions\": [
+            285
+          ]
+        }'" DEFECTDOJO_USER_ID
+  artifacts:
+    paths:
+      - defectdojo-infrastructure.env
+
+defectdojo_create_product_types:
+  stage: create_product_types
+  allow_failure: false
+  script:
+    - echo "Creating DefectDojo product types"
+    - source ./scripts/extract.sh
+    - >
+      run_command "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/product_types/\" \
+        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+          \"name\": \"Business Unit Security\",
+          \"description\": \"Business Unit for all security tools\",
+          \"critical_product\": true,
+          \"key_product\": true
+        }'" DEFECTDOJO_PRODUCT_TYPE_ID
+  artifacts:
+    paths:
+      - defectdojo-infrastructure.env
+  dependencies:
+    - defectdojo_create_user
+
+defectdojo_create_product_types_members:
+  stage: create_product_types_member
+  allow_failure: false
+  script:
+    - echo "Creating DefectDojo product type members"
+    - source ./scripts/extract.sh
+    - source defectdojo-infrastructure.env
+    - >
+      print_command "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/product_type_members/\" \
+        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+          \"product_type\": \"${DEFECTDOJO_PRODUCT_TYPE_ID}\",
+          \"user\": \"${DEFECTDOJO_USER_ID}\",
+          \"role\": 4
+        }'"
+  dependencies:
+    - defectdojo_create_user
+    - defectdojo_create_product_types
+
+defectdojo_create_product:
+  stage: create_product
+  allow_failure: false
+  script:
+    - echo "Creating DefectDojo product"
+    - source ./scripts/extract.sh
+    - source defectdojo-infrastructure.env
+    - >
+      run_command "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/products/\" \
+        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+          \"name\": \"Spring Cloud API-Gateway\",
+          \"description\": \"A API-Gateway created by Spring Cloud.\",
+          \"prod_numeric_grade\": 2147483647,
+          \"business_criticality\": \"very high\",
+          \"platform\": \"web service\",
+          \"lifecycle\": \"construction\",
+          \"origin\": \"third party library\",
+          \"user_records\": 2147483647,
+          \"revenue\": \"-458\",
+          \"external_audience\": true,
+          \"internet_accessible\": true,
+          \"enable_product_tag_inheritance\": true,
+          \"enable_simple_risk_acceptance\": true,
+          \"enable_full_risk_acceptance\": true,
+          \"disable_sla_breach_notifications\": true,
+          \"product_manager\": \"${DEFECTDOJO_USER_ID}\",
+          \"technical_contact\": \"${DEFECTDOJO_USER_ID}\",
+          \"team_manager\": \"${DEFECTDOJO_USER_ID}\",
+          \"prod_type\": \"${DEFECTDOJO_PRODUCT_TYPE_ID}\",
+          \"sla_configuration\": 1,
+          \"regulations\": [
+            13
+          ]
+        }'" DEFECTDOJO_PRODUCT_ID
+  artifacts:
+    paths:
+      - defectdojo-infrastructure.env
+  dependencies:
+    - defectdojo_create_user
+    - defectdojo_create_product_types
