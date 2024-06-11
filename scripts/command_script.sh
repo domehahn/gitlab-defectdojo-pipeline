@@ -4,9 +4,7 @@ if [ -f defectdojo-infrastructure.env ]; then
   export $(grep -v '^#' defectdojo-infrastructure.env | xargs)
 fi
 
-run_command() {
-  ls -lisa
-  pwd
+execute_curl() {
   command=$1
   key=$2
   echo "Running command: $command"
@@ -24,8 +22,21 @@ run_command() {
   fi
 }
 
-print_command() {
+print_curl() {
   command=$1
   key=$2
   echo "Running command: $command"
+}
+
+load_file() {
+  SEARCH_DIR="."
+  FILE_NAME="defectdojo-infrastructure.env"
+  FILE_PATH=$(find "$SEARCH_DIR" -name "$FILE_NAME" -print -quit)
+  if [ -n "$FILE_PATH" ]; then
+    echo "File found: $FILE_PATH"
+    source "$FILE_PATH"
+  else
+    echo "File not found: $FILE_NAME"
+    exit 1
+  fi
 }

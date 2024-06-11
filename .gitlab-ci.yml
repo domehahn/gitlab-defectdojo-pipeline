@@ -1,11 +1,7 @@
 image: alpine
 
-#after_script:
-#  - rm -rf ./defectdojo-infrastructure.env
-
 stages:
   - trivy_scan
-  - create_engagement
   - upload_results
 
 variables:
@@ -22,71 +18,46 @@ variables:
 before_script:
   - apk add --update --no-cache curl jq coreutils findutils
   - TODAY=$(date +%Y-%m-%d)
-  - ENDDAY=$(date +%Y-%m-%d)
 
-#trivy_scan:
-#  stage: trivy_scan
-#  image: docker:stable
-#  before_script:
-#    - export TRIVY_VERSION=$(wget -qO - "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
-#    - echo $TRIVY_VERSION
-#    - wget --no-verbose https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz -O - | tar -zxvf -
-#    - mkdir -p ./scanresults/trivy
-#  services:
-#    - name: docker:dind
-#      entrypoint: ["env", "-u", "DOCKER_HOST"]
-#      command: ["dockerd-entrypoint.sh"]
-#  variables:
-#    DOCKER_HOST: tcp://docker:2375/
-#    DOCKER_DRIVER: overlay2
-#    # See https://github.com/docker-library/docker/pull/166
-#    DOCKER_TLS_CERTDIR: ""
-#    DEFECTDOJO_SCAN_FILE_NAME: "trivy-container-scanning-report.json"
-#    DEFECTDOJO_SCAN_FILE_DIRECTORY: "./scanresults/trivy"
-#  allow_failure: false
-#  script:
-#    - ./trivy image -f json -o "${DEFECTDOJO_SCAN_FILE_DIRECTORY}/${DEFECTDOJO_SCAN_FILE_NAME}" ghcr.io/domehahn/api-gateway:latest
-#  cache:
-#    paths:
-#      - .trivycache/
-#  artifacts:
-#    paths:
-#     - gl-container-scanning-report.json
-
-defectdojo_create_engagement:
-  stage: create_engagement
-  allow_failure: true
+prepare:
+  stage: .pre
   script:
-    - source ./scripts/extract.sh
-    - |
-      SEARCH_DIR="."
-      FILE_NAME="defectdojo-infrastructure.env"
-      FILE_PATH=$(find "$SEARCH_DIR" -name "$FILE_NAME" -print -quit)
-      if [[ -n "$FILE_PATH" ]]; then
-        echo "File found: $FILE_PATH"
-        source "$FILE_PATH"
-      else
-        echo "File not found: $FILE_NAME"
-      exit 1
-      fi
-    - >
-      run_command "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/engagements/\" \
-        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
-        --header 'Content-Type: application/json' \
-        --data-raw '{
-          \"name\": \"Initial Scan\",
-          \"description\": \"Initial Scan result\",
-          \"version\": \"1.0\",
-          \"first_contacted\": \"${TODAY}\",
-          \"target_start\": \"${TODAY}\",
-          \"target_end\": \"${ENDDAY}\",
-          \"lead\": \"${DEFECTDOJO_USER_ID}\",
-          \"engagement_type\": \"CI/CD\",
-          \"product\": \"${DEFECTDOJO_PRODUCT_ID}\"
-        }'" DEFECTDOJO_ENGAGEMENT_ID
-  artifacts:
+    - echo "Prepare create directory and load environment file"
+    - source ./scripts/command_script.sh
+    - mkdir -p ./scanresults/trivy
+    - load_file
+  cache:
+    key: defectdojo
     paths:
       - defectdojo-infrastructure.env
+
+trivy_scan:
+  stage: trivy_scan
+  image: docker:stable
+  before_script:
+    - export TRIVY_VERSION=$(wget -qO - "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+    - echo $TRIVY_VERSION
+    - wget --no-verbose https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz -O - | tar -zxvf -
+  services:
+    - name: docker:dind
+      entrypoint: ["env", "-u", "DOCKER_HOST"]
+      command: ["dockerd-entrypoint.sh"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    # See https://github.com/docker-library/docker/pull/166
+    DOCKER_TLS_CERTDIR: ""
+    DEFECTDOJO_SCAN_FILE_NAME: "trivy-container-scanning-report.json"
+    DEFECTDOJO_SCAN_FILE_DIRECTORY: "./scanresults/trivy"
+  allow_failure: false
+  script:
+    - ./trivy image -f json -o "${DEFECTDOJO_SCAN_FILE_DIRECTORY}/${DEFECTDOJO_SCAN_FILE_NAME}" ghcr.io/domehahn/api-gateway:latest
+  cache:
+    paths:
+      - .trivycache/
+  artifacts:
+    paths:
+      - scanresults/trivy/trivy-container-scanning-report.json
 
 defectdojo_upload_trivy_results:
   stage: upload_results
@@ -110,5 +81,3 @@ defectdojo_upload_trivy_results:
   artifacts:
     paths:
       - defectdojo-infrastructure.env
-  dependencies:
-    - defectdojo_create_engagement
