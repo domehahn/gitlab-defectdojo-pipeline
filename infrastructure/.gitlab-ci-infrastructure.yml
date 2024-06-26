@@ -6,11 +6,7 @@ stages:
   - create_product_types_member
   - create_product
   - create_engagement
-
-before_script:
-    - apk add --no-cache curl jq coreutils
-    - TODAY=$(date +%Y-%m-%d)
-    - ENDDAY=$(date +%Y-%m-%d)
+  - push_to_minio
 
 variables:
   DEFECTDOJO_ENGAGEMENT_PERIOD: "7"
@@ -26,102 +22,111 @@ variables:
   DEFECTDOJO_NOT_ON_MASTER: "false"
   DEFECTDOJO_ANCHORE_DISABLE: "false"
   DEFECTDOJO_URL: "http://host.docker.internal:8080/api/v2"
-  DEFECTDOJO_TOKEN: "5351a7773fbe13cf73378d6ba2c85a789596d7ef"
-
-prepare:
-  stage: .pre
-  script:
-    - rm defectdojo-infrastructure.env
-    - echo "Prepare environment file"
-    - touch defectdojo-infrastructure.env
-  artifacts:
-    paths:
-      - defectdojo-infrastructure.env
+  DEFECTDOJO_TOKEN: "9e5666397e91a850175488a2ad66a71163397809"
+  AWS_ENDPOINT_URL: "http://host.docker.internal:9000/"
+  AWS_ACCESS_KEY: "FBEF8PE2bPNgu5WBJt5r"
+  AWS_SECRET_KEY: "X15XSNwbexawdJgujKaosrpqOdYPUVjD2eniUdGW"
+  S3_BUCKET: "defectdojo"
 
 defectdojo_create_user:
   stage: create_user
   allow_failure: false
+  before_script:
+    - apk add --no-cache curl jq
+    - TODAY=$(date +%Y-%m-%d)
+    - ENDDAY=$(date +%Y-%m-%d)
   script:
-    - pwd
-    - ls -lisa ./scripts
     - echo "Creating DefectDojo user"
-    - source ./scripts/command_script.sh
     - >
-      execute_curl "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/users/\" \
-        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+      USER_ID=$(curl --request POST "$DEFECTDOJO_URL/users/" \
+        --header "Authorization: Token $DEFECTDOJO_TOKEN" \
         --header 'Content-Type: application/json' \
         --data-raw '{
-          \"username\": \"Gitlab\",
-          \"first_name\": \"CI\",
-          \"last_name\": \"CD\",
-          \"email\": \"dominik.hahn@opitz-consulting.com\",
-          \"is_active\": true,
-          \"is_superuser\": true,
-          \"password\": \"Sup3rS4f3P4$$w[]rd\",
-          \"configuration_permissions\": [
+          "username": "Gitlab",
+          "first_name": "CI",
+          "last_name": "CD",
+          "email": "dominik.hahn@opitz-consulting.com",
+          "is_active": true,
+          "is_superuser": true,
+          "password": "Sup3rS4f3P4$$w[]rd",
+          "configuration_permissions": [
             285
           ]
-        }'" DEFECTDOJO_USER_ID
+        }' | jq -r '.id')
+    - echo "DEFECTDOJO_USER_ID=$USER_ID" > artifact.env
   artifacts:
     paths:
-      - defectdojo-infrastructure.env
-  dependencies:
-    - prepare
+      - artifact.env
 
 defectdojo_create_product_types:
   stage: create_product_types
   allow_failure: false
-  script:
-    - echo "Creating DefectDojo product types"
-    - source ./scripts/command_script.sh
-    - >
-      execute_curl "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/product_types/\" \
-        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
-        --header 'Content-Type: application/json' \
-        --data-raw '{
-          \"name\": \"Business Unit Security\",
-          \"description\": \"Business Unit for all security tools\",
-          \"critical_product\": true,
-          \"key_product\": true
-        }'" DEFECTDOJO_PRODUCT_TYPE_ID
-  artifacts:
-    paths:
-      - defectdojo-infrastructure.env
   dependencies:
     - defectdojo_create_user
+  before_script:
+    - apk add --no-cache curl jq
+    - TODAY=$(date +%Y-%m-%d)
+    - ENDDAY=$(date +%Y-%m-%d)
+  script:
+    - echo "Creating DefectDojo product types"
+    - source artifact.env
+    - >
+      PRODUCT_TYPE_ID=$(curl --request POST "$DEFECTDOJO_URL/product_types/" \
+        --header "Authorization: Token $DEFECTDOJO_TOKEN" \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+          "name": "Business Unit Security",
+          "description": "Business Unit for all security tools",
+          "critical_product": true,
+          "key_product": true
+        }' | jq -r '.id')
+    - echo "DEFECTDOJO_PRODUCT_TYPE_ID=$PRODUCT_TYPE_ID" >> artifact.env
+  artifacts:
+    paths:
+      - artifact.env
 
 defectdojo_create_product_types_members:
   stage: create_product_types_member
   allow_failure: false
+  dependencies:
+    - defectdojo_create_product_types
+  before_script:
+    - apk add --no-cache curl jq
+    - TODAY=$(date +%Y-%m-%d)
+    - ENDDAY=$(date +%Y-%m-%d)
   script:
     - echo "Creating DefectDojo product type members"
-    - source ./scripts/command_script.sh
-    - source defectdojo-infrastructure.env
-    - >
-      print_curld "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/product_type_members/\" \
-        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+    - source artifact.env
+    - |
+      curl --request POST "$DEFECTDOJO_URL/product_type_members/" \
+        --header "Authorization: Token $DEFECTDOJO_TOKEN" \
         --header 'Content-Type: application/json' \
-        --data-raw '{
-          \"product_type\": \"${DEFECTDOJO_PRODUCT_TYPE_ID}\",
-          \"user\": \"${DEFECTDOJO_USER_ID}\",
+        --data-raw "{
+          \"product_type\": \"${DEFECTDOJO_PRODUCT_TYPE_ID}\", 
+          \"user\": \"${DEFECTDOJO_USER_ID}\", 
           \"role\": 4
-        }'"
-  dependencies:
-    - defectdojo_create_user
-    - defectdojo_create_product_types
+        }"
+  artifacts:
+    paths:
+      - artifact.env
 
 defectdojo_create_product:
   stage: create_product
   allow_failure: false
+  dependencies:
+    - defectdojo_create_product_types_members
+  before_script:
+    - apk add --no-cache curl jq
+    - TODAY=$(date +%Y-%m-%d)
+    - ENDDAY=$(date +%Y-%m-%d)
   script:
     - echo "Creating DefectDojo product"
-    - source ./scripts/command_script.sh
-    - source defectdojo-infrastructure.env
+    - source artifact.env
     - >
-      execute_curl "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/products/\" \
-        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+      PRODUCT_ID=$(curl --request POST "$DEFECTDOJO_URL/products/" \
+        --header "Authorization: Token $DEFECTDOJO_TOKEN" \
         --header 'Content-Type: application/json' \
-        --data-raw '{
+        --data-raw "{
           \"name\": \"Spring Cloud API-Gateway\",
           \"description\": \"A API-Gateway created by Spring Cloud.\",
           \"prod_numeric_grade\": 2147483647,
@@ -135,49 +140,87 @@ defectdojo_create_product:
           \"internet_accessible\": true,
           \"enable_product_tag_inheritance\": true,
           \"enable_simple_risk_acceptance\": true,
-          \"enable_full_risk_acceptance\": true,
+          \"enable_full risk_acceptance\": true,
           \"disable_sla_breach_notifications\": true,
-          \"product_manager\": \"${DEFECTDOJO_USER_ID}\",
-          \"technical_contact\": \"${DEFECTDOJO_USER_ID}\",
-          \"team_manager\": \"${DEFECTDOJO_USER_ID}\",
-          \"prod_type\": \"${DEFECTDOJO_PRODUCT_TYPE_ID}\",
+          \"product_manager\": \"$DEFECTDOJO_USER_ID\",
+          \"technical_contact\": \"$DEFECTDOJO_USER_ID\",
+          \"team_manager\": \"$DEFECTDOJO_USER_ID\",
+          \"prod_type\": \"$DEFECTDOJO_PRODUCT_TYPE_ID\",
           \"sla_configuration\": 1,
           \"regulations\": [
             13
           ]
-        }'" DEFECTDOJO_PRODUCT_ID
+        }" | jq -r '.id')
+    - echo "DEFECTDOJO_PRODUCT_ID=$PRODUCT_ID" >> artifact.env
   artifacts:
     paths:
-      - defectdojo-infrastructure.env
-  dependencies:
-    - defectdojo_create_user
-    - defectdojo_create_product_types
+      - artifact.env
 
 defectdojo_create_engagement:
   stage: create_engagement
-  allow_failure: true
+  allow_failure: false
+  dependencies:
+    - defectdojo_create_product
+  before_script:
+    - apk add --no-cache curl jq
+    - TODAY=$(date +%Y-%m-%d)
+    - ENDDAY=$(date +%Y-%m-%d)
   script:
     - echo "Creating DefectDojo engagement"
-    - source ./scripts/command_script.sh
-    - source defectdojo-infrastructure.env
+    - source artifact.env
     - >
-      execute_curl "curl -s -D - -d '' --request POST \"${DEFECTDOJO_URL}/engagements/\" \
-        --header \"Authorization: Token ${DEFECTDOJO_TOKEN}\" \
+      ENGAGEMENT_ID=$(curl --request POST "$DEFECTDOJO_URL/engagements/" \
+        --header "Authorization: Token $DEFECTDOJO_TOKEN" \
         --header 'Content-Type: application/json' \
-        --data-raw '{
+        --data-raw "{
           \"name\": \"Initial Scan\",
           \"description\": \"Initial Scan result\",
           \"version\": \"1.0\",
-          \"first_contacted\": \"${TODAY}\",
-          \"target_start\": \"${TODAY}\",
-          \"target_end\": \"${ENDDAY}\",
-          \"lead\": \"${DEFECTDOJO_USER_ID}\",
+          \"first_contacted\": \"$TODAY\",
+          \"target_start\": \"$TODAY\",
+          \"target_end\": \"$ENDDAY\",
+          \"lead\": \"$DEFECTDOJO_USER_ID\",
           \"engagement_type\": \"CI/CD\",
-          \"product\": \"${DEFECTDOJO_PRODUCT_ID}\"
-        }'" DEFECTDOJO_ENGAGEMENT_ID
+          \"product\": \"$DEFECTDOJO_PRODUCT_ID\"
+        }" | jq -r '.id')
+    - echo "DEFECTDOJO_ENGAGEMENT_ID=$ENGAGEMENT_ID" >> artifact.env
   artifacts:
     paths:
-      - defectdojo-infrastructure.env
+      - artifact.env
+
+push_to_minio:
+  stage: push_to_minio
+  allow_failure: false
   dependencies:
-    - defectdojo_create_user
-    - defectdojo_create_product
+    - defectdojo_create_engagement
+  image:
+    name: minio/minio
+    entrypoint: [""]
+  script:
+    - echo "Push artifact.env to minIO S3"
+    - source artifact.env
+    # Create directory for certificates and decode the certificate
+    - mkdir -p ~/.mc/certs/CAs
+    - echo $CERTIFICATE_BASE64 | base64 -d > ~/.mc/certs/CAs/minio.cer
+    - echo "Decoded certificate and stored in ~/.mc/certs/CAs/minio.cer"
+    # Set alias for MinIO
+    - mc --insecure alias set myminio $AWS_ENDPOINT_URL $AWS_ACCESS_KEY $AWS_SECRET_KEY || (echo "Failed to set alias" && exit 1)
+    - echo "Alias set successfully"
+    # List buckets to verify connection
+    - mc --insecure ls myminio || (echo "Failed to list buckets" && exit 1)
+    - echo "Buckets listed successfully"
+    # Remove objects in the specified bucket
+    - mc rm --insecure --recursive --force myminio/$S3_BUCKET/ || (echo "Failed to remove objects in bucket" && exit 1)
+    - echo "Removed objects in bucket successfully"
+    # Debug source file
+    - if [ -f artifact.env ]; then echo "artifact.env file exists"; else echo "artifact.env file does not exist" && exit 1; fi
+    # Copy files to the specified bucket
+    - mc cp --insecure --recursive artifact.env myminio/$S3_BUCKET/ || (echo "Failed to copy files to bucket" && exit 1)
+    - echo "Copied files to bucket successfully"
+    # Decode certificate again for AWS CA Bundle
+    - echo $CERTIFICATE_BASE64 | base64 -d > /tmp/minio.cer
+    - export AWS_CA_BUNDLE=/tmp/minio.cer
+    - mkdir $HOME/.aws
+  artifacts:
+    paths:
+      - artifact.env

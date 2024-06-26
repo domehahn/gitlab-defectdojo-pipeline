@@ -1,1 +1,7 @@
 ---
+CI_REGISTRY: host.docker.internal:8090
+CI_REGISTRY_USER: registry
+CI_REGISTRY_PASSWORD: ui
+CI_PROJECT_DIR: .
+IMAGE_NAME: defectdojo:latest
+#CI_REGISTRY_IMAGE: 

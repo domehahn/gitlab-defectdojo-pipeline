@@ -1,0 +1,15 @@
+---
+# tasks file for domehahn.s3fs-fuse
+- name: Load variable file, or a default if not found.
+  include_vars: "main.yml"
+
+- name: use command to mount folder to s3 bucket using s3fs
+  command: >
+    s3fs
+    -o {{ item.args }}
+    -o passwd_file="{{ s3fs.passwd_file }}"
+    -o "url={{ item.url }}"
+    {{ item.bucket }} {{ item.mountpoint }}
+  loop: "{{ s3fs.buckets }}"
+  loop_control:
+    index_var: info_index

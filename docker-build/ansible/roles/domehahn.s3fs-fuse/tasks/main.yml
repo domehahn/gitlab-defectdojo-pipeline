@@ -1,0 +1,8 @@
+---
+- debug: var=s3fs verbosity=1
+  tags: vars
+
+- include_tasks: install_dependencies.yml
+- include_tasks: setup.yml
+- include_tasks: mount.yml
+#- include_tasks: s3fs.yml

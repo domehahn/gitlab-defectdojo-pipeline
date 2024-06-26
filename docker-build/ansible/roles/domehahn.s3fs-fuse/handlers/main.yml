@@ -1,0 +1,8 @@
+---
+# handlers file for domehahn.s3fs-fuse
+- name: restart s3fs
+  become: yes
+  service:
+    name: s3fs
+    state: restarted
+    enabled: yes

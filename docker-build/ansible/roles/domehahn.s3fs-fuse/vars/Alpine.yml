@@ -1,0 +1,23 @@
+---
+# vars file for domehahn.s3fs-fuse
+s3fs:
+  dependencies:
+    - build-base
+    - alpine-sdk
+    - fuse
+    - fuse-dev
+    - automake
+    - autoconf
+    - git
+    - libressl-dev
+    - libcurl
+    - libxml2-dev
+    - mailcap
+    - curl-dev
+    - ca-certificates
+    - libxml2
+    - libgcc
+    - libstdc++
+    - tini
+    - deluser xfs
+    - openrc

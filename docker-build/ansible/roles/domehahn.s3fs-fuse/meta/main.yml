@@ -1,0 +1,14 @@
+galaxy_info:
+  author: domehahn
+  description: s3fs for Alpine
+  license: license (BSD-3-Clause, MIT)
+  min_ansible_version: 2.1
+  platforms:
+    - name: Alpine
+      versions:
+        - 3.18.3
+
+  galaxy_tags:
+    - s3fs
+
+dependencies: []

@@ -1,0 +1,7 @@
+---
+s3fs-mount: "{{ ansible_env.S3FS_MOUNT | default('/opt/s3fs/bucket') }}"
+s3fs-bucket: "{{ ansible_env.S3FS_BUCKET | default('s3fs-bucket') }}"
+s3fs-accessKeyId: "{{ ansible_env.S3FS_ACCESS_KEY_ID | default('accessKeyId') }}"
+s3fs-secretAccessKey: "{{ ansible_env.S3FS_SECRET_ACCESS_KEY | default('secretAccessKey') }}"
+s3fs-url: "{{ ansible_env.S3FS_BUCKET_URL | default('http://s3.amazonaws.com') }}"
+s3fs-args: "{{ ansible_env.S3FS_ARGS | default('') }}"

@@ -1,0 +1,4 @@
+[registry."host.docker.internal:5000"]
+  mirrors = ["https://host.docker.internal:5000"]
+  http = true
+  insecure = true

@@ -1,0 +1,15 @@
+---
+- name: Load variable file, or a default if not found.
+  include_vars: "main.yml"
+
+- name: Clone the s3fs-fuse repository
+  git:
+    repo: "{{ s3fs.source }}"
+    dest: "~/s3fs-fuse"
+
+- name: Build s3fs
+  shell: "cd ~/s3fs-fuse && ./autogen.sh && ./configure && make"
+
+- name: Install s3fs
+  become: yes
+  shell: "cd ~/s3fs-fuse && make install"

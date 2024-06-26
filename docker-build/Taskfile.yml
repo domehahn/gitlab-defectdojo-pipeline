@@ -1,0 +1,10 @@
+version: "3"
+
+tasks:
+  bake:
+    desc: Use docker buildx bake to push to localregistry
+    cmds:
+      - docker login http://localhost:8090 -u registry -p ui
+      - docker buildx use multiarch > /dev/null 2>&1 || docker buildx create --name multiarch --driver docker-container --driver-opt network=host --config buildkitd.toml --use > /dev/null 2>&1
+      - docker buildx bake --builder multiarch -f docker-bake.hcl
+    silent: true

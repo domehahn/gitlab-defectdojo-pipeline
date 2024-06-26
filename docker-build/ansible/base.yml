@@ -1,0 +1,28 @@
+---
+- hosts: localhost
+  gather_facts: true
+  vars:
+      required_environment_variables:
+        - S3FS_BUCKET
+        - S3FS_ACCESS_KEY_ID
+        - S3FS_SECRET_ACCESS_KEY
+        - S3FS_MOUNT
+        - S3FS_BUCKET_URL
+
+  roles:
+    - { role: domehahn.s3fs-fuse }
+
+- hosts: localhost
+  gather_facts: true
+  become: true
+
+  tasks:
+
+    - name: mount folder to s3 bucket using s3fs
+      s3fs:
+        url: "{{ s3fs-url }}"
+        bucket: "{{ s3fs-bucket }}"
+        mount: "{{ s3fs-mount }}"
+        accessKeyId: "{{ s3fs-accessKeyId }}"
+        secretAccessKey: "{{ s3fs-secretAccessKey }}"
+        args: "{{ s3fs-args }}"

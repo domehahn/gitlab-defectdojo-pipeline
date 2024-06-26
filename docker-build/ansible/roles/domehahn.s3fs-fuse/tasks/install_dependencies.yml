@@ -1,0 +1,13 @@
+---
+# tasks file for domehahn.s3fs-fuse
+- name: Load variable file based on the OS type, or a default if not found.
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Install dependencies
+  become: true
+  community.general.apk:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  with_items: "{{ s3fs.dependencies }}"
+  ignore_errors: true
