@@ -98,7 +98,8 @@ build-image:
     S3FS_BUCKET_URL: "http://host.docker.internal:9000"
     S3FS_ARGS: "use_path_request_style"
   script:
-    - ./script/execute_ansible
+    - source ./scripts/execute_ansible.sh
+    - execute_ansible
     - ls -lisa
     - ls ../ansible
     - ls ../kaniko
