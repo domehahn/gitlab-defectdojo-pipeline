@@ -1,6 +1,7 @@
 ---
 - hosts: localhost
   gather_facts: true
+  become: True
   vars:
       required_environment_variables:
         - S3FS_BUCKET
@@ -12,17 +13,17 @@
   roles:
     - { role: domehahn.s3fs-fuse }
 
-- hosts: localhost
-  gather_facts: true
-  become: true
-
-  tasks:
-
-    - name: mount folder to s3 bucket using s3fs
-      s3fs:
-        url: "{{ s3fs-url }}"
-        bucket: "{{ s3fs-bucket }}"
-        mount: "{{ s3fs-mount }}"
-        accessKeyId: "{{ s3fs-accessKeyId }}"
-        secretAccessKey: "{{ s3fs-secretAccessKey }}"
-        args: "{{ s3fs-args }}"
+#- hosts: localhost
+#  gather_facts: true
+#  become: true
+#
+#  tasks:
+#
+#    - name: mount folder to s3 bucket using s3fs
+#      s3fs:
+#        url: "{{ s3fs-url }}"
+#        bucket: "{{ s3fs-bucket }}"
+#        mount: "{{ s3fs-mount }}"
+#        accessKeyId: "{{ s3fs-accessKeyId }}"
+#        secretAccessKey: "{{ s3fs-secretAccessKey }}"
+#        args: "{{ s3fs-args }}"

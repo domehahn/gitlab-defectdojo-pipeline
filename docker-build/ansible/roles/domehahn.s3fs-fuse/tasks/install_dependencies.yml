@@ -5,7 +5,7 @@
 
 - name: Install dependencies
   become: true
-  community.general.apk:
+  ansible.builtin.apk:
     name: "{{ item }}"
     state: present
     update_cache: true

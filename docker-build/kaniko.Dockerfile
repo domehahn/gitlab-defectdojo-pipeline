@@ -1,10 +1,8 @@
-FROM kaniko AS builder
+FROM kaniko AS kaniko
 
 COPY auth.json /kaniko/.docker/config.json
 
-COPY dev/ /kaniko
-
-FROM alpine AS middle
+FROM alpine AS ansible
 
 RUN mkdir ansible
 
@@ -16,10 +14,8 @@ COPY entrypoint.sh .
 
 FROM alpine
 
-RUN mkdir kaniko
-
-COPY --from=builder kaniko kaniko
-COPY --from=middle ansible ansible
+COPY --from=kaniko kaniko kaniko
+COPY --from=ansible ansible ansible
 
 ENV S3FS_MOUNT=/opt/s3fs/bucket
 
@@ -28,11 +24,12 @@ VOLUME $S3FS_MOUNT
 RUN apk upgrade --no-cache && \
     apk add ansible && \
     rm -rf /var/cache/apk/* && \
-    chmod -R 777 ansible/
+    chmod -R 777 ansible/ && \
+    mkdir /opt/s3fs
 
 WORKDIR ansible
 
-ENTRYPOINT ["./entrypoint.sh"]
+#ENTRYPOINT ["./entrypoint.sh"]
 
 # docker run \
 # -v $(pwd):/workspace \

@@ -11,7 +11,7 @@ target "docker-metadata-action" {
 }
 
 target "docker-local-registry" {
-    tags = ["localhost:8090/test:${TAG}"]
+    tags = ["localhost:8090/kaniko:${TAG}"]
 }
 
 target "image" {

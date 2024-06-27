@@ -5,11 +5,10 @@
 
 - name: use command to mount folder to s3 bucket using s3fs
   command: >
-    s3fs
+    s3fs {{ item.bucket }} {{ item.mountpoint }}
     -o {{ item.args }}
     -o passwd_file="{{ s3fs.passwd_file }}"
-    -o "url={{ item.url }}"
-    {{ item.bucket }} {{ item.mountpoint }}
+    -o url={{ item.url }}
   loop: "{{ s3fs.buckets }}"
   loop_control:
     index_var: info_index

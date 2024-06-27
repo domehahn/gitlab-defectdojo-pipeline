@@ -6,10 +6,11 @@
   git:
     repo: "{{ s3fs.source }}"
     dest: "~/s3fs-fuse"
+    version: master
 
 - name: Build s3fs
-  shell: "cd ~/s3fs-fuse && ./autogen.sh && ./configure && make"
+  shell: "cd ~/s3fs-fuse && ./autogen.sh && ./configure -prefix=/usr"
 
 - name: Install s3fs
   become: yes
-  shell: "cd ~/s3fs-fuse && make install"
+  shell: "cd ~/s3fs-fuse && make -j && make install"

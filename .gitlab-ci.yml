@@ -14,11 +14,12 @@ variables:
   DEFECTDOJO_SCAN_ENVIRONMENT: "Default"
   DEFECTDOJO_SCAN_FILE_NAME: "gl-container-scanning-report.json"
   DEFECTDOJO_SCAN_DIRECTORY: "./scanresults/${DEFECTDOJO_SCAN_FILE_NAME}"
-  IMAGE_TAG: "localhost:8090/defectdojo:latest"
+  DEFECTDOJO_IMAGE: "localhost:8090/defectdojo:latest"
   AWS_ENDPOINT_URL: "http://host.docker.internal:9000/"
   AWS_ACCESS_KEY: "FBEF8PE2bPNgu5WBJt5r"
   AWS_SECRET_KEY: "X15XSNwbexawdJgujKaosrpqOdYPUVjD2eniUdGW"
   S3_BUCKET: "defectdojo"
+  KANIKO_IMAGE: "localhost:8090/kaniko:latest"
 
 # trivy_scan:
 #   stage: trivy_scan
@@ -88,19 +89,25 @@ variables:
 
 build-image:
   stage: build_image
-  image: kaniko:latest
+  image: $KANIKO_IMAGE
+  variables:
+    S3FS_BUCKET: "defectdojo"
+    S3FS_ACCESS_KEY_ID: "O8Z0hJ87F2IksIH3MOxy"
+    S3FS_SECRET_ACCESS_KEY: "xQJA5iHHchPk0KGnaWHWGn9bvYL6dKebiDdTRXfU"
+    S3FS_MOUNT: "/opt/s3fs/bucket"
+    S3FS_BUCKET_URL: "http://host.docker.internal:9000"
+    S3FS_ARGS: "use_path_request_style"
   script:
+    - execute_ansible
     - ls -lisa
-    - cd ..
-    - ls -lisa
-    - cd ../kaniko
-    - ls -lisa
-    - cat ./kaniko/.docker/config.json
+    - ls ../ansible
+    - ls ../kaniko
+    - ls ../opt/s3fs
     - ./kaniko/executor --context dir:///defectdojo/ --dockerfile Dockerfile --destination "$CI_REGISTRY/$IMAGE_NAME" --cleanup --insecure
 
 # defectdojo_upload_trivy_results:
 #   stage: upload_results
-#   image: $IMAGE_TAG
+#   image: $DEFECTDOJO_IMAGE
 #   variables:
 #     DEFECTDOJO_SCAN_FILE_DIRECTORY: "./scanresults/trivy/trivy-container-scanning-report.json"
 #   dependencies:
