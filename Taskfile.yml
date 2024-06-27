@@ -1,0 +1,21 @@
+version: "3"
+
+tasks:
+  start-defectdojo:
+    desc: Start Defectdojo
+    dir: ~/dev/playground/devsecops/django-DefectDojo
+    cmds:
+      - ./dc-build.sh
+      - ./dc-up-d.sh postgres-redis
+    silent: true
+  
+  start-registry:
+    desc: Start local docker start-registry
+    dir: ~/dev/forks/docker-registry-ui/examples/ui-as-proxy
+    cmds:
+      - docker compose -f simple.yml up -d
+
+  defectdojo-password:
+    desc: Grep defectdojo defectdojo-password
+    cmds:
+      - docker compose logs initializer | grep "Admin password:"

@@ -20,3 +20,14 @@ tsconfig.tsbuildinfo
 .DS_Store
 
 .vscode
+
+artifact.env
+/scanresults/
+
+**/*.tfstate
+**/*.tfstate.*
+**/*.lock.*
+.terraform/
+*.tfvars
+*.tfplan
+terraform.*

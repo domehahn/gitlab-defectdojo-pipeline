@@ -1,12 +1,12 @@
 stages:
-  #- trivy_scan
-  #- push_to_minio
+  - trivy_scan
+  - push_to_minio
   - build_image
-  #- upload_results
+  - upload_results
 
 variables:
   DEFECTDOJO_URL: "http://host.docker.internal:8080/api/v2"
-  DEFECTDOJO_TOKEN: "5351a7773fbe13cf73378d6ba2c85a789596d7ef"
+  DEFECTDOJO_TOKEN: "a7fe97352bfe4415077a472991172fa72004599e"
   DEFECTDOJO_SCAN_MINIMUM_SEVERITY: "Info"
   DEFECTDOJO_SCAN_ACTIVE: "true"
   DEFECTDOJO_SCAN_VERIFIED: "true"
@@ -16,76 +16,76 @@ variables:
   DEFECTDOJO_SCAN_DIRECTORY: "./scanresults/${DEFECTDOJO_SCAN_FILE_NAME}"
   DEFECTDOJO_IMAGE: "localhost:8090/defectdojo:latest"
   AWS_ENDPOINT_URL: "http://host.docker.internal:9000/"
-  AWS_ACCESS_KEY: "FBEF8PE2bPNgu5WBJt5r"
-  AWS_SECRET_KEY: "X15XSNwbexawdJgujKaosrpqOdYPUVjD2eniUdGW"
+  AWS_ACCESS_KEY: "O8Z0hJ87F2IksIH3MOxy"
+  AWS_SECRET_KEY: "xQJA5iHHchPk0KGnaWHWGn9bvYL6dKebiDdTRXfU"
   S3_BUCKET: "defectdojo"
   KANIKO_IMAGE: "localhost:8090/kaniko:latest"
 
-# trivy_scan:
-#   stage: trivy_scan
-#   image: docker:stable
-#   before_script:
-#     - export TRIVY_VERSION=$(wget -qO - "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
-#     - echo $TRIVY_VERSION
-#     - wget --no-verbose https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz -O - | tar -zxvf -
-#     - mkdir -p ./scanresults/trivy
-#   services:
-#     - name: docker:dind
-#       entrypoint: ["env", "-u", "DOCKER_HOST"]
-#       command: ["dockerd-entrypoint.sh"]
-#   variables:
-#     DOCKER_HOST: tcp://docker:2375/
-#     DOCKER_DRIVER: overlay2
-#     # See https://github.com/docker-library/docker/pull/166
-#     DOCKER_TLS_CERTDIR: ""
-#     DEFECTDOJO_SCAN_FILE_NAME: "trivy-container-scanning-report.json"
-#     DEFECTDOJO_SCAN_FILE_DIRECTORY: "./scanresults/trivy"
-#   allow_failure: false
-#   script:
-#     - ./trivy image -f json -o "${DEFECTDOJO_SCAN_FILE_DIRECTORY}/${DEFECTDOJO_SCAN_FILE_NAME}" ghcr.io/domehahn/api-gateway:latest
-#   cache:
-#     paths:
-#       - .trivycache/
-#   artifacts:
-#     paths:
-#       - scanresults/trivy/trivy-container-scanning-report.json
+trivy_scan:
+  stage: trivy_scan
+  image: docker:stable
+  before_script:
+    - export TRIVY_VERSION=$(wget -qO - "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+    - echo $TRIVY_VERSION
+    - wget --no-verbose https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz -O - | tar -zxvf -
+    - mkdir -p ./scanresults/trivy
+  services:
+    - name: docker:dind
+      entrypoint: ["env", "-u", "DOCKER_HOST"]
+      command: ["dockerd-entrypoint.sh"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    # See https://github.com/docker-library/docker/pull/166
+    DOCKER_TLS_CERTDIR: ""
+    DEFECTDOJO_SCAN_FILE_NAME: "trivy-container-scanning-report.json"
+    DEFECTDOJO_SCAN_FILE_DIRECTORY: "./scanresults/trivy"
+  allow_failure: false
+  script:
+    - ./trivy image -f json -o "${DEFECTDOJO_SCAN_FILE_DIRECTORY}/${DEFECTDOJO_SCAN_FILE_NAME}" ghcr.io/domehahn/api-gateway:latest
+  cache:
+    paths:
+      - .trivycache/
+  artifacts:
+    paths:
+      - scanresults/trivy/trivy-container-scanning-report.json
 
-# push_to_minio:
-#   stage: push_to_minio
-#   allow_failure: false
-#   dependencies:
-#     - trivy_scan
-#   image:
-#     name: minio/minio
-#     entrypoint: [""]
-#   script:
-#     - cd scanresults/trivy/
-#     - echo "Push trivy-container-scanning-report.json to minIO S3"
-#     # Create directory for certificates and decode the certificate
-#     - mkdir -p ~/.mc/certs/CAs
-#     - echo $CERTIFICATE_BASE64 | base64 -d > ~/.mc/certs/CAs/minio.cer
-#     - echo "Decoded certificate and stored in ~/.mc/certs/CAs/minio.cer"
-#     # Set alias for MinIO
-#     - mc --insecure alias set myminio $AWS_ENDPOINT_URL $AWS_ACCESS_KEY $AWS_SECRET_KEY || (echo "Failed to set alias" && exit 1)
-#     - echo "Alias set successfully"
-#     # List buckets to verify connection
-#     - mc --insecure ls myminio || (echo "Failed to list buckets" && exit 1)
-#     - echo "Buckets listed successfully"
-#     # Remove objects in the specified bucket
-#     #- mc rm --insecure --recursive --force myminio/$S3_BUCKET/ || (echo "Failed to remove objects in bucket" && exit 1)
-#     #- echo "Removed objects in bucket successfully"
-#     # Debug source file
-#     - if [ -f trivy-container-scanning-report.json ]; then echo "trivy-container-scanning-report.json file exists"; else echo "trivy-container-scanning-report.json file does not exist" && exit 1; fi
-#     # Copy files to the specified bucket
-#     - mc cp --insecure --recursive trivy-container-scanning-report.json myminio/$S3_BUCKET/ || (echo "Failed to copy files to bucket" && exit 1)
-#     - echo "Copied files to bucket successfully"
-#     # Decode certificate again for AWS CA Bundle
-#     - echo $CERTIFICATE_BASE64 | base64 -d > /tmp/minio.cer
-#     - export AWS_CA_BUNDLE=/tmp/minio.cer
-#     - mkdir $HOME/.aws
-#   artifacts:
-#     paths:
-#       - scanresults/trivy/trivy-container-scanning-report.json
+push_to_minio:
+  stage: push_to_minio
+  allow_failure: false
+  dependencies:
+    - trivy_scan
+  image:
+    name: minio/minio
+    entrypoint: [""]
+  script:
+    - cd scanresults/trivy/
+    - echo "Push trivy-container-scanning-report.json to minIO S3"
+    # Create directory for certificates and decode the certificate
+    - mkdir -p ~/.mc/certs/CAs
+    - echo $CERTIFICATE_BASE64 | base64 -d > ~/.mc/certs/CAs/minio.cer
+    - echo "Decoded certificate and stored in ~/.mc/certs/CAs/minio.cer"
+    # Set alias for MinIO
+    - mc --insecure alias set myminio $AWS_ENDPOINT_URL $AWS_ACCESS_KEY $AWS_SECRET_KEY || (echo "Failed to set alias" && exit 1)
+    - echo "Alias set successfully"
+    # List buckets to verify connection
+    - mc --insecure ls myminio || (echo "Failed to list buckets" && exit 1)
+    - echo "Buckets listed successfully"
+    # Remove objects in the specified bucket
+    #- mc rm --insecure --recursive --force myminio/$S3_BUCKET/ || (echo "Failed to remove objects in bucket" && exit 1)
+    #- echo "Removed objects in bucket successfully"
+    # Debug source file
+    - if [ -f trivy-container-scanning-report.json ]; then echo "trivy-container-scanning-report.json file exists"; else echo "trivy-container-scanning-report.json file does not exist" && exit 1; fi
+    # Copy files to the specified bucket
+    - mc cp --insecure --recursive trivy-container-scanning-report.json myminio/$S3_BUCKET/ || (echo "Failed to copy files to bucket" && exit 1)
+    - echo "Copied files to bucket successfully"
+    # Decode certificate again for AWS CA Bundle
+    - echo $CERTIFICATE_BASE64 | base64 -d > /tmp/minio.cer
+    - export AWS_CA_BUNDLE=/tmp/minio.cer
+    - mkdir $HOME/.aws
+  artifacts:
+    paths:
+      - scanresults/trivy/trivy-container-scanning-report.json
 
 build-image:
   stage: build_image
@@ -100,41 +100,37 @@ build-image:
   script:
     - source ./scripts/execute_ansible.sh
     - execute_ansible
-    - ls -lisa
-    - ls ../ansible
-    - ls ../kaniko
-    - ls ../opt/s3fs
-    - ./kaniko/executor --context dir:///defectdojo/ --dockerfile Dockerfile --destination "$CI_REGISTRY/$IMAGE_NAME" --cleanup --insecure
+    - execute_kaniko
 
-# defectdojo_upload_trivy_results:
-#   stage: upload_results
-#   image: $DEFECTDOJO_IMAGE
-#   variables:
-#     DEFECTDOJO_SCAN_FILE_DIRECTORY: "./scanresults/trivy/trivy-container-scanning-report.json"
-#   dependencies:
-#     - trivy_scan
-#   allow_failure: false
-#   before_script:
-#     - echo "Run before script"
-#     - apk add --update --no-cache curl
-#     - TODAY=$(date +%Y-%m-%d)
-#   script:
-#     - echo "Upload scan results"
-#     - source ../artifact.env
-#     - echo "Check if the scan results file exists:"
-#     - if [ -f "${DEFECTDOJO_SCAN_FILE_DIRECTORY}" ]; then echo "File exists."; else echo "File does not exist."; exit 1; fi
-#     - >
-#       curl --request POST "${DEFECTDOJO_URL}/import-scan/" \
-#          --header "Authorization: Token ${DEFECTDOJO_TOKEN}" \
-#          --form "scan_date=\"${TODAY}\"" \
-#          --form "minimum_severity=\"${DEFECTDOJO_SCAN_MINIMUM_SEVERITY}\"" \
-#          --form "active=\"${DEFECTDOJO_SCAN_ACTIVE}\"" \
-#          --form "verified=\"${DEFECTDOJO_SCAN_VERIFIED}\"" \
-#          --form "scan_type=\"Trivy Scan\"" \
-#          --form "engagement=\"${DEFECTDOJO_ENGAGEMENT_ID}\"" \
-#          --form "file=@${DEFECTDOJO_SCAN_FILE_DIRECTORY}" \
-#          --form "close_old_findings=\"${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}\"" \
-#          --form "environment=\"${DEFECTDOJO_SCAN_ENVIRONMENT}\""
-#   artifacts:
-#     paths:
-#       - artifact.env
+defectdojo_upload_trivy_results:
+  stage: upload_results
+  image: $DEFECTDOJO_IMAGE
+  variables:
+    DEFECTDOJO_SCAN_FILE_DIRECTORY: "./scanresults/trivy/trivy-container-scanning-report.json"
+  dependencies:
+    - trivy_scan
+  allow_failure: false
+  before_script:
+    - echo "Run before script"
+    - apk add --update --no-cache curl
+    - TODAY=$(date +%Y-%m-%d)
+  script:
+    - echo "Upload scan results"
+    - source ../artifact.env
+    - echo "Check if the scan results file exists:"
+    - if [ -f "${DEFECTDOJO_SCAN_FILE_DIRECTORY}" ]; then echo "File exists."; else echo "File does not exist."; exit 1; fi
+    - >
+      curl --request POST "${DEFECTDOJO_URL}/import-scan/" \
+         --header "Authorization: Token ${DEFECTDOJO_TOKEN}" \
+         --form "scan_date=\"${TODAY}\"" \
+         --form "minimum_severity=\"${DEFECTDOJO_SCAN_MINIMUM_SEVERITY}\"" \
+         --form "active=\"${DEFECTDOJO_SCAN_ACTIVE}\"" \
+         --form "verified=\"${DEFECTDOJO_SCAN_VERIFIED}\"" \
+         --form "scan_type=\"Trivy Scan\"" \
+         --form "engagement=\"${DEFECTDOJO_ENGAGEMENT_ID}\"" \
+         --form "file=@${DEFECTDOJO_SCAN_FILE_DIRECTORY}" \
+         --form "close_old_findings=\"${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}\"" \
+         --form "environment=\"${DEFECTDOJO_SCAN_ENVIRONMENT}\""
+  artifacts:
+    paths:
+      - artifact.env

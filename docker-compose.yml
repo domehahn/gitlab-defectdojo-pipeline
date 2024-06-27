@@ -14,6 +14,21 @@ services:
       - minio_data:/data
     networks:
       - minionetwork
+
+  #docker compose run --rm terraform-minio init
+  #docker compose run --rm terraform-minio plan
+  #docker compose run --rm terraform-minio apply -auto-approve
+  #docker compose run --rm terraform-minio destroy -auto-approve
+  terraform-minio:
+    image: hashicorp/terraform:0.14.10
+    volumes:
+      - ./terraform/minio:/infra
+    env_file:
+      - ./terraform/terraform.env
+    working_dir: /infra
+    restart: unless-stopped
+    networks:
+      - minionetwork
   
   kaniko:
     image: localhost:8090/kaniko:latest
